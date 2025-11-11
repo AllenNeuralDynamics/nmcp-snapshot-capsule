@@ -17,6 +17,7 @@ RUN --mount=type=secret,id=git-access-token \
     GIT_ACCESS_TOKEN="$(cat /run/secrets/git-access-token)" \
     pip3 install -U --no-cache-dir \
     s3fs \
+    gql[requests] \
     -e git+https://github.com/AllenNeuralDynamics/nmcp-scripting@585c81574c282800f2781df103471b37cc2399ce#egg=nmcpscripting
 
 COPY postInstall /
