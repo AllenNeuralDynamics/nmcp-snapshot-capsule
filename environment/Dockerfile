@@ -1,6 +1,6 @@
-# hash:sha256:9a841403a596d346215a2475deaf67a62333737e659182382607c4672e6f1190
+# hash:sha256:b118bdea317b48ce2bb16739101c6ebf45fc07eae3905c9d3cde4809810ed14b
 ARG REGISTRY_HOST
-FROM $REGISTRY_HOST/codeocean/mambaforge3:23.1.0-4-python3.10.12-ubuntu22.04
+FROM $REGISTRY_HOST/codeocean/mambaforge3:24.5.0-0-python3.12.4-ubuntu22.04
 
 ARG DEBIAN_FRONTEND=noninteractive
 ARG GIT_ASKPASS
@@ -12,13 +12,6 @@ RUN apt-get update \
         jq \
         wget \
     && rm -rf /var/lib/apt/lists/*
-
-RUN --mount=type=secret,id=git-access-token \
-    GIT_ACCESS_TOKEN="$(cat /run/secrets/git-access-token)" \
-    pip3 install -U --no-cache-dir \
-    s3fs \
-    gql[requests] \
-    -e git+https://github.com/AllenNeuralDynamics/nmcp-scripting@585c81574c282800f2781df103471b37cc2399ce#egg=nmcpscripting
 
 COPY postInstall /
 RUN --mount=type=secret,id=secrets . /run/secrets/secrets \
