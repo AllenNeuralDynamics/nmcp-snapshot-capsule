@@ -11,7 +11,7 @@ from nmcp_client import (
     QueryError,
     NmcpClientConfig,
     NmcpClient,
-    NeuronMetadata,
+    NeuronData,
     allowed_suffix_for,
     DEFAULT_BASE_URL,
 )
@@ -67,9 +67,9 @@ def download_neurons(
         logging.info("No reconstructions matched the requested filters.")
         return
 
-    def process_one(md: NeuronMetadata) -> None:
+    def process_one(md: NeuronData) -> None:
         t0 = time.perf_counter()
-        target_path = output_dir / f"{md.human_label}{suffix}"
+        target_path = output_dir / f"{md.label}{suffix}"
 
         try:
             download_fn(
@@ -80,14 +80,14 @@ def download_neurons(
             )
             logging.info(
                 "Downloaded %s → %s in %.2fs",
-                md.human_label,
+                md.label,
                 target_path,
                 time.perf_counter() - t0,
             )
         except Exception as exc:
             logging.error(
                 "Failed to download %s: %s",
-                md.human_label,
+                md.label,
                 exc,
             )
 

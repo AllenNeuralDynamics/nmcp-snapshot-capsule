@@ -48,21 +48,22 @@ class NmcpClientConfig:
 
 
 @dataclass(frozen=True)
-class NeuronMetadata:
-    """Minimal data required to identify and label a reconstruction."""
-
-    neuron_id: str
-    human_label: str
-    subject: str
+class NeuronData:
+    """Small wrapper class for GraphQL query result."""
+    uuid: str  # e.g., "550e8400-e29b-41d4-a716-446655440000"
+    label: str  # e.g., N001-685221
+    subject: str  # e.g., 685221
+    data: dict
 
     @staticmethod
-    def from_api(payload: dict) -> "NeuronMetadata":
+    def from_api(payload: dict) -> "NeuronData":
         sample_id = payload["neuron"]["sample"]["animalId"]
         neuron_label = payload["neuron"]["idString"]
-        return NeuronMetadata(
-            neuron_id=payload["neuronId"],
-            human_label=f"{neuron_label}-{sample_id}",
+        return NeuronData(
+            uuid=payload["neuronId"],
+            label=f"{neuron_label}-{sample_id}",
             subject=str(sample_id),
+            data=payload
         )
 
 
@@ -70,7 +71,7 @@ class NeuronMetadata:
 class ZipDownloadResult:
     """Structured outcome for each attempted download/extract."""
 
-    neuron: NeuronMetadata
+    neuron: NeuronData
     elapsed_s: float
     error: Optional[str] = None
     zip_content_bytes: Optional[bytes] = None
@@ -93,7 +94,7 @@ class NmcpClient:
 
     def list_published_neurons(
         self, subjects: Optional[Sequence[str]] = None
-    ) -> List[NeuronMetadata]:
+    ) -> List[NeuronData]:
         """Fetch reconstruction metadata from the publishing service."""
         try:
             records = list(query_published(host=self._config.graphql_url))
@@ -110,11 +111,11 @@ class NmcpClient:
                     if r["neuron"]["sample"]["animalId"] in subject_set
                 ]
 
-        return [NeuronMetadata.from_api(record) for record in records]
+        return [NeuronData.from_api(record) for record in records]
 
     def download_archive(
         self,
-        neuron: NeuronMetadata,
+        neuron: NeuronData,
         export_format: ExportFormat,
         *,
         output_path: Optional[Path | str] = None,
@@ -137,7 +138,7 @@ class NmcpClient:
         def _attempt() -> Tuple[Optional[Tuple[bytes, str]], float]:
             t0 = time.perf_counter()
             payload = download_reconstruction(
-                neuron.neuron_id,
+                neuron.uuid,
                 export_format,
                 host=self._config.export_url,
             )
@@ -178,7 +179,7 @@ class NmcpClient:
 
     def download_json(
         self,
-        neuron: NeuronMetadata,
+        neuron: NeuronData,
         *,
         output_path: Optional[Path | str] = None,
         attempts: int = 1,
@@ -208,12 +209,12 @@ class NmcpClient:
             return json.loads(json_text)
         except json.JSONDecodeError as exc:
             raise RuntimeError(
-                f"Downloaded archive for {neuron.human_label} did not contain valid JSON."
+                f"Downloaded archive for {neuron.label} did not contain valid JSON."
             ) from exc
 
     def download_swc(
         self,
-        neuron: NeuronMetadata,
+        neuron: NeuronData,
         *,
         output_path: Optional[Path | str] = None,
         attempts: int = 1,
@@ -241,7 +242,7 @@ class NmcpClient:
 
     def _require_archive_bytes(
         self,
-        neuron: NeuronMetadata,
+        neuron: NeuronData,
         export_format: ExportFormat,
         attempts: int,
         base_sleep: float,
@@ -254,17 +255,17 @@ class NmcpClient:
         )
         if result.error:
             raise RuntimeError(
-                f"Failed to download archive for {neuron.human_label}: {result.error}"
+                f"Failed to download archive for {neuron.label}: {result.error}"
             )
         if result.zip_content_bytes is None:
             raise RuntimeError(
-                f"Archive for {neuron.human_label} did not include file contents."
+                f"Archive for {neuron.label} did not include file contents."
             )
         return result.zip_content_bytes
 
     def _download_text_payload(
         self,
-        neuron: NeuronMetadata,
+        neuron: NeuronData,
         export_format: ExportFormat,
         output_path: Optional[Path | str],
         attempts: int,
@@ -280,7 +281,7 @@ class NmcpClient:
             )
         except ZipExtractError as exc:
             raise RuntimeError(
-                f"Archive for {neuron.human_label} missing '{suffix}' content: {exc}"
+                f"Archive for {neuron.label} missing '{suffix}' content: {exc}"
             ) from exc
 
         text = payload_bytes.decode("utf-8")
