@@ -40,6 +40,52 @@ STATUS_COLUMN = SmartsheetField.STATUS_1
 DEFAULT_STATUS_FILTER = SmartsheetStatus.COMPLETED.value
 
 
+def _load_downloaded_cell_ids(directory: str | Path) -> set[str]:
+    """
+    Collect cell identifiers from downloaded reconstruction JSON filenames.
+
+    Parameters
+    ----------
+    directory : str | Path
+        Directory containing reconstruction JSON files.
+
+    Returns
+    -------
+    set[str]
+        File stems derived from ``*.json`` files in the directory.
+
+    Raises
+    ------
+    FileNotFoundError
+        If the directory does not exist.
+    NotADirectoryError
+        If the provided path is not a directory.
+    ValueError
+        If no JSON files are found within the directory.
+    """
+    json_dir = Path(directory)
+    if not json_dir.exists():
+        raise FileNotFoundError(
+            f"Reconstruction JSON directory {json_dir} does not exist."
+        )
+    if not json_dir.is_dir():
+        raise NotADirectoryError(
+            f"Reconstruction JSON path {json_dir} is not a directory."
+        )
+
+    cell_ids = {
+        path.stem
+        for path in json_dir.iterdir()
+        if path.is_file() and path.suffix.lower() == ".json"
+    }
+
+    if not cell_ids:
+        raise ValueError(
+            f"No reconstruction JSON files (*.json) found in {json_dir}."
+        )
+    return cell_ids
+
+
 def _pending_status(evaluator: str = "Automated Init") -> List[QCStatus]:
     """
     Create an initial pending status entry with a UTC timestamp.
@@ -125,6 +171,7 @@ def generate_qc_json(
     excel_path: str | Path,
     output_dir: str | Path,
     status_filter: str | None = DEFAULT_STATUS_FILTER,
+    reconstruction_json_dir: str | Path | None = None,
 ) -> QualityControl:
     """
     Generate a ``QualityControl`` object for all reconstructions of a mouse.
@@ -139,6 +186,9 @@ def generate_qc_json(
         Output directory (unused placeholder for compatibility).
     status_filter : str | None, optional
         Status value required in ``SmartsheetField.STATUS_1`` (default is ``"Completed"``).
+    reconstruction_json_dir : str | Path | None, optional
+        Directory containing downloaded reconstruction JSON files. When provided,
+        QC entries are limited to rows whose ``CELL_ID`` has a matching JSON file stem.
 
     Returns
     -------
@@ -155,6 +205,12 @@ def generate_qc_json(
     df = pd.read_excel(excel_path)
 
     normalized_mouse_id = str(mouse_id).strip()
+
+    downloaded_cell_ids: set[str] | None = None
+    json_dir: Path | None = None
+    if reconstruction_json_dir is not None:
+        json_dir = Path(reconstruction_json_dir)
+        downloaded_cell_ids = _load_downloaded_cell_ids(json_dir)
 
     rows = df[
         df[SmartsheetField.MOUSE_ID.value].apply(normalize_mouse_id)
@@ -188,6 +244,14 @@ def generate_qc_json(
             curation_values,
             normalized_mouse_id,
         )
+
+        if downloaded_cell_ids is not None and cell_id not in downloaded_cell_ids:
+            logger.info(
+                "Skipping neuron %s because JSON file was not downloaded into %s",
+                cell_id,
+                json_dir,
+            )
+            continue
 
         horta_xyz = parse_coord(row.get(SmartsheetField.HORTA_COORDINATES.value))
         ccf_xyz = parse_coord(row.get(SmartsheetField.CCF_COORDINATES.value))
@@ -265,6 +329,11 @@ def generate_qc_json(
             collected_notes.append(f"{cell_id}: {note}")
 
     if not curation_values:
+        if downloaded_cell_ids is not None and json_dir is not None:
+            raise ValueError(
+                f"No usable reconstruction records found for Mouse ID {mouse_id} "
+                f"after filtering to downloaded JSON files in {json_dir}"
+            )
         raise ValueError(
             f"No usable reconstruction records found for Mouse ID {mouse_id}"
         )

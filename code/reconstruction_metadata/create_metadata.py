@@ -63,6 +63,15 @@ def parse_args() -> argparse.Namespace:
         default="/results",
         help="Directory where generated metadata files will be written.",
     )
+    parser.add_argument(
+        "--reconstruction-json-dir",
+        type=Path,
+        default=None,
+        help=(
+            "Directory containing downloaded reconstruction JSON files. "
+            "When provided, QC metadata is restricted to reconstructions present here."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -79,6 +88,7 @@ def main() -> None:
     data_path = args.data_path
     excel_file = Path(args.excel_file)
     output_dir = Path(args.output_dir)
+    reconstruction_json_dir = args.reconstruction_json_dir
 
     bucket, prefix = parse_s3_path(data_path)
     subject_id, _ = parse_subject(data_path)
@@ -89,6 +99,7 @@ def main() -> None:
         mouse_id=str(subject_id),
         excel_path=excel_file,
         output_dir=output_dir,
+        reconstruction_json_dir=reconstruction_json_dir,
     )
 
     save_json_file(output_dir, filename="quality_control.json", payload=qc)

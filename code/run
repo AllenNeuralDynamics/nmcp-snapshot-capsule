@@ -2,7 +2,7 @@
 set -euo pipefail
 
 if [[ $# -ne 3 ]]; then
-  echo "Usage: $0 <subject-id> <s3-destination-uri> <reconstruction-excel-file>" >&2
+  echo "Usage: $0 <raw-data-asset-uri> <s3-destination-uri> <reconstruction-excel-file>" >&2
   exit 1
 fi
 
@@ -39,7 +39,11 @@ python reconstruction_snapshot/write_precomputed.py \
   --output "$PRECOMP_FILE"
 
 echo "Creating reconstruction metadata..."
-python reconstruction_metadata/create_metadata.py $RAW_DATA_ASSET --excel-file $NEURON_RECONSTRUCTION_EXCEL_FILE --output-dir "/results"
+python reconstruction_metadata/create_metadata.py \
+  "$RAW_DATA_ASSET" \
+  --excel-file "$NEURON_RECONSTRUCTION_EXCEL_FILE" \
+  --output-dir "/results" \
+  --reconstruction-json-dir "$JSON_DIR"
 
 echo "Uploading /results to $S3_DEST..."
 aws s3 sync /results "$S3_DEST"
