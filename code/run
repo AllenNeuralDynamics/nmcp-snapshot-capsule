@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ $# -ne 3 ]]; then
+  echo "Usage: $0 <subject-id> <s3-destination-uri> <reconstruction-excel-file>" >&2
+  exit 1
+fi
+
+RAW_DATA_ASSET=$1
+
+# parse subject ID from raw data asset string using a regex
+SUBJECT_ID=$(echo "$RAW_DATA_ASSET" | grep -oP 'exaSPIM_\K[^_]+')
+echo "Parsed subject ID: ${SUBJECT_ID}"
+
+S3_DEST=$2
+NEURON_RECONSTRUCTION_EXCEL_FILE=$3
+BASE_DIR="/results/ccf_space_reconstructions"
+JSON_DIR="$BASE_DIR/jsons"
+SWC_DIR="$BASE_DIR/swcs"
+PRECOMP_FILE="$BASE_DIR/reconstructions.precomputed"
+
+mkdir -p "$JSON_DIR" "$SWC_DIR"
+
+echo "Downloading JSON reconstructions for subject ${SUBJECT_ID}..."
+python reconstruction_snapshot/download_neurons.py \
+  --format json \
+  --output "$JSON_DIR" \
+  --subject "$SUBJECT_ID"
+
+echo "Downloading SWC reconstructions for subject ${SUBJECT_ID}..."
+python reconstruction_snapshot/download_neurons.py \
+  --format swc \
+  --output "$SWC_DIR" \
+  --subject "$SUBJECT_ID"
+
+echo "Generating precomputed file at $PRECOMP_FILE..."
+python reconstruction_snapshot/write_precomputed.py \
+  --input-dir "$JSON_DIR" \
+  --output "$PRECOMP_FILE"
+
+echo "Creating reconstruction metadata..."
+python reconstruction_metadata/create_metadata.py $RAW_DATA_ASSET --excel-file $NEURON_RECONSTRUCTION_EXCEL_FILE --output-dir "/results"
+
+echo "Uploading /results to $S3_DEST..."
+aws s3 sync /results "$S3_DEST"
+
+echo "All tasks completed successfully."
