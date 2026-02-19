@@ -10,8 +10,8 @@ conda create -n py311 -c conda-forge python=3.11 pip -y
 source $(conda info --base)/etc/profile.d/conda.sh
 conda activate py311
 
-pip3 install -e git+https://github.com/AllenNeuralDynamics/nmcp-precomputed@cba02c7698a60d500456dc98c5c618e15304dc13#egg=nmcp
-pip3 install -e git+https://github.com/AllenNeuralDynamics/nmcp-scripting.git#egg=nmcpscripting
+pip3 install -e git+https://github.com/AllenNeuralDynamics/nmcp-precomputed@4239690e55967c86c3e9b57078f520dfb2b319da#egg=nmcp
+pip3 install -e git+https://github.com/AllenNeuralDynamics/nmcp-scripting@585c81574c282800f2781df103471b37cc2399ce#egg=nmcpscripting
 pip3 install zarr==2.18.2 \
 "numpy<1.24" \
 s3fs==2025.10.0 \
