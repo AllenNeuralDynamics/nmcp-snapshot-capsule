@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [[ $# -ne 3 ]]; then
-  echo "Usage: $0 <raw-data-asset-uri> <s3-destination-uri> <reconstruction-excel-file>" >&2
+if [[ $# -ne 4 ]]; then
+  echo "Usage: $0 <raw-data-asset-uri> <s3-destination-uri> <reconstruction-excel-file> <fused-zarr-path>" >&2
   exit 1
 fi
 
@@ -14,36 +14,63 @@ echo "Parsed subject ID: ${SUBJECT_ID}"
 
 S3_DEST=$2
 NEURON_RECONSTRUCTION_EXCEL_FILE=$3
-BASE_DIR="/results/ccf_space_reconstructions"
-JSON_DIR="$BASE_DIR/jsons"
-SWC_DIR="$BASE_DIR/swcs"
-PRECOMP_FILE="$BASE_DIR/reconstructions.precomputed"
+FUSED_ZARR_PATH=$4
 
-mkdir -p "$JSON_DIR" "$SWC_DIR"
+BASE_DIR="/results"
+CCF_SPACE_DIR="$BASE_DIR/ccf_space_reconstructions"
+SPECIMEN_SPACE_DIR="$BASE_DIR/specimen_space_reconstructions"
 
-echo "Downloading JSON reconstructions for subject ${SUBJECT_ID}..."
+mkdir -p "$CCF_SPACE_DIR" "$SPECIMEN_SPACE_DIR"
+
+echo "Downloading CCF space JSONs for subject ${SUBJECT_ID}..."
 python reconstruction_snapshot/download_neurons.py \
   --format json \
-  --output "$JSON_DIR" \
-  --subject "$SUBJECT_ID"
+  --output "$CCF_SPACE_DIR/json" \
+  --subject "$SUBJECT_ID" \
+  --reconstruction-space 1 \
+  --verbose
 
-echo "Downloading SWC reconstructions for subject ${SUBJECT_ID}..."
+echo "Downloading CCF space SWCs for subject ${SUBJECT_ID}..."
 python reconstruction_snapshot/download_neurons.py \
   --format swc \
-  --output "$SWC_DIR" \
-  --subject "$SUBJECT_ID"
+  --output "$CCF_SPACE_DIR/swc" \
+  --subject "$SUBJECT_ID" \
+  --reconstruction-space 1 \
+  --verbose
 
-echo "Generating precomputed file at $PRECOMP_FILE..."
+echo "Downloading specimen space JSONs for subject ${SUBJECT_ID}..."
+python reconstruction_snapshot/download_neurons.py \
+  --format json \
+  --output "$SPECIMEN_SPACE_DIR/json" \
+  --subject "$SUBJECT_ID" \
+  --reconstruction-space 0 \
+  --verbose
+
+echo "Downloading specimen space SWCs for subject ${SUBJECT_ID}..."
+python reconstruction_snapshot/download_neurons.py \
+  --format swc \
+  --output "$SPECIMEN_SPACE_DIR/swc" \
+  --subject "$SUBJECT_ID" \
+  --reconstruction-space 0 \
+  --verbose
+
+echo "Generating precomputed file for CCF reconstructions..."
 python reconstruction_snapshot/write_precomputed.py \
-  --input-dir "$JSON_DIR" \
-  --output "$PRECOMP_FILE"
+  --input-dir "$CCF_SPACE_DIR/json" \
+  --output "$CCF_SPACE_DIR/reconstructions.precomputed"
+
+echo "Generating precomputed file for specimen space reconstructions..."
+python reconstruction_snapshot/write_precomputed.py \
+  --input-dir "$SPECIMEN_SPACE_DIR/json" \
+  --output "$SPECIMEN_SPACE_DIR/reconstructions.precomputed" \
+  --zarr-group "$FUSED_ZARR_PATH"
 
 echo "Creating reconstruction metadata..."
 python reconstruction_metadata/create_metadata.py \
   "$RAW_DATA_ASSET" \
   --excel-file "$NEURON_RECONSTRUCTION_EXCEL_FILE" \
   --output-dir "/results" \
-  --reconstruction-json-dir "$JSON_DIR"
+  --reconstruction-json-dir "$CCF_SPACE_DIR/json"
 
 echo "Uploading /results to $S3_DEST..."
 aws s3 sync /results "$S3_DEST"
