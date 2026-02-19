@@ -19,4 +19,7 @@ q = get_introspection_query(
 )
 result = client.execute(gql(q))
 schema = build_client_schema(result)
-print(print_schema(schema))
+schema_str = print_schema(schema)
+with open("schema.txt", 'w') as f:
+    f.write(schema_str)
+    
