@@ -38,7 +38,7 @@ def download_neurons(
     subjects: Optional[Sequence[str]] = None,
     *,
     jobs: int = 1,
-    retry_attempts: int = 3,
+    retry_attempts: int = 5,
 ) -> None:
     """
     Download and extract all reconstructions matching the filters.
