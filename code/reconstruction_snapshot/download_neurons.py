@@ -33,6 +33,7 @@ def _select_download_fn(
 def download_neurons(
     client: NmcpClient,
     export_format: ExportFormat,
+    reconstruction_space: int,
     output_dir: Path | str,
     subjects: Optional[Sequence[str]] = None,
     *,
@@ -74,6 +75,7 @@ def download_neurons(
         try:
             download_fn(
                 md,
+                reconstruction_space=reconstruction_space,
                 output_path=target_path,
                 attempts=retry_attempts,
                 base_sleep=0.5,
@@ -143,6 +145,7 @@ def build_parser() -> argparse.ArgumentParser:
         default=DEFAULT_EXPORT_FORMAT.name.lower(),
         type=_parse_export_format,
     )
+    parser.add_argument("-r", "--reconstruction-space", type=int, default=0)
     parser.add_argument(
         "-o",
         "--output",
@@ -216,15 +219,16 @@ def main(cli_args: Optional[Sequence[str]] = None) -> None:
         download_neurons(
             client,
             args.format,
+            args.reconstruction_space,
             args.output,
             args.subjects,
             jobs=max(1, args.jobs),
         )
     except QueryError as exc:
-        logging.error("Query failed: %s", exc)
+        logging.exception("Query failed: %s", exc)
         raise SystemExit(2) from exc
     except Exception as exc:
-        logging.error("Unexpected fatal error: %s", exc)
+        logging.exception("Unexpected fatal error: %s", exc)
         raise SystemExit(2) from exc
 
     logging.info("Finished processing downloads.")
