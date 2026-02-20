@@ -71,7 +71,6 @@ def download_neurons(
     def process_one(md: NeuronData) -> None:
         t0 = time.perf_counter()
         target_path = output_dir / f"{md.label}{suffix}"
-
         try:
             download_fn(
                 md,
@@ -80,18 +79,15 @@ def download_neurons(
                 attempts=retry_attempts,
                 base_sleep=0.5,
             )
-            logging.info(
-                "Downloaded %s → %s in %.2fs",
-                md.label,
-                target_path,
-                time.perf_counter() - t0,
-            )
         except Exception as exc:
-            logging.error(
-                "Failed to download %s: %s",
-                md.label,
-                exc,
-            )
+            raise RuntimeError(f"Failed to download {md.label}: {exc}") from exc
+
+        logging.info(
+            "Downloaded %s → %s in %.2fs",
+            md.label,
+            target_path,
+            time.perf_counter() - t0,
+        )
 
     if jobs <= 1:
         for md in metadata_records:
@@ -99,7 +95,14 @@ def download_neurons(
     else:
         # I/O bound; threads are sufficient and avoid pickling issues of processes
         with futures.ThreadPoolExecutor(max_workers=jobs) as pool:
-            list(pool.map(process_one, metadata_records))
+            all_futures = [pool.submit(process_one, md) for md in metadata_records]
+            try:
+                for job in futures.as_completed(all_futures):
+                    job.result()
+            except Exception:
+                for pending in all_futures:
+                    pending.cancel()
+                raise
 
 
 def _parse_export_format(value: str) -> ExportFormat:

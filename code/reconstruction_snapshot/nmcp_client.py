@@ -1,6 +1,7 @@
 import json
 import requests
 import base64
+import binascii
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -71,12 +72,11 @@ class NeuronData:
 
 @dataclass
 class ZipDownloadResult:
-    """Structured outcome for each attempted download/extract."""
+    """Structured success outcome for a completed archive download."""
 
     neuron: NeuronData
     elapsed_s: float
-    error: Optional[str] = None
-    zip_content_bytes: Optional[bytes] = None
+    zip_content_bytes: bytes
 
 
 class QueryError(RuntimeError):
@@ -110,7 +110,7 @@ class NmcpClient:
                 records = [
                     r
                     for r in records
-                    if r["neuron"]["specimen"]["label"] in subject_set
+                    if str(r["neuron"]["specimen"]["label"]) in subject_set
                 ]
 
         return [NeuronData.from_api(record) for record in records]
@@ -136,9 +136,13 @@ class NmcpClient:
             base_sleep: Base backoff duration between retries.
 
         Returns:
-            ZipDownloadResult: Outcome describing the download attempt.
+            ZipDownloadResult: Completed download result.
+
+        Raises:
+            Exception: Propagates any request, validation, retry-exhaustion,
+                or output write failure.
         """
-        def _attempt() -> Tuple[Optional[Tuple[bytes, str]], float]:
+        def _attempt() -> Tuple[Tuple[bytes, str], float]:
             t0 = time.perf_counter()
             payload = self._download_archive_bytes(
                 neuron.uuid,
@@ -147,27 +151,11 @@ class NmcpClient:
             )
             return payload, time.perf_counter() - t0
 
-        try:
-            payload, elapsed = with_retries(
-                _attempt,
-                attempts=attempts,
-                base_sleep=base_sleep,
-            )
-        except Exception as exc:
-            return ZipDownloadResult(
-                neuron=neuron,
-                elapsed_s=0.0,
-                error=f"download failed: {exc}",
-                zip_content_bytes=None,
-            )
-
-        if payload is None:
-            return ZipDownloadResult(
-                neuron=neuron,
-                elapsed_s=elapsed,
-                error="archive not available",
-                zip_content_bytes=None,
-            )
+        payload, elapsed = with_retries(
+            _attempt,
+            attempts=attempts,
+            base_sleep=base_sleep,
+        )
 
         archive_bytes, _ = payload
         if output_path is not None:
@@ -176,7 +164,6 @@ class NmcpClient:
         return ZipDownloadResult(
             neuron=neuron,
             elapsed_s=elapsed,
-            error=None,
             zip_content_bytes=archive_bytes,
         )
 
@@ -247,31 +234,6 @@ class NmcpClient:
             base_sleep,
         )
 
-    def _require_archive_bytes(
-        self,
-        neuron: NeuronData,
-        export_format: ExportFormat,
-        reconstruction_space: int,
-        attempts: int,
-        base_sleep: float,
-    ) -> bytes:
-        result = self.download_archive(
-            neuron,
-            export_format,
-            reconstruction_space=reconstruction_space,
-            attempts=attempts,
-            base_sleep=base_sleep,
-        )
-        if result.error:
-            raise RuntimeError(
-                f"Failed to download archive for {neuron.label}: {result.error}"
-            )
-        if result.zip_content_bytes is None:
-            raise RuntimeError(
-                f"Archive for {neuron.label} did not include file contents."
-            )
-        return result.zip_content_bytes
-
     def _download_text_payload(
         self,
         neuron: NeuronData,
@@ -281,9 +243,14 @@ class NmcpClient:
         attempts: int,
         base_sleep: float,
     ) -> str:
-        archive_bytes = self._require_archive_bytes(
-            neuron, export_format, reconstruction_space, attempts, base_sleep
+        result = self.download_archive(
+            neuron,
+            export_format,
+            reconstruction_space=reconstruction_space,
+            attempts=attempts,
+            base_sleep=base_sleep,
         )
+        archive_bytes = result.zip_content_bytes
         suffix = allowed_suffix_for(export_format)
         try:
             payload_bytes = ZipExtractor.extract_member_bytes(
@@ -301,13 +268,75 @@ class NmcpClient:
 
         return text
 
-    def _download_archive_bytes(self, reconstruction_id: str, export_format: ExportFormat, reconstruction_space: int = 0):
-        payload = {"ids": [reconstruction_id], "format": export_format, "reconstructionSpace": reconstruction_space}
-        response = requests.post(self._config.export_url, json=payload, headers={"Content-Type": "application/json"})
-        if response.status_code == 200:
+    def _download_archive_bytes(
+        self,
+        reconstruction_id: str,
+        export_format: ExportFormat,
+        reconstruction_space: int = 0,
+    ) -> Tuple[bytes, str]:
+        payload = {
+            "ids": [reconstruction_id],
+            "format": export_format.value,
+            "reconstructionSpace": reconstruction_space,
+        }
+        response = requests.post(
+            self._config.export_url,
+            json=payload,
+            headers={"Content-Type": "application/json"},
+        )
+        if response.status_code != 200:
+            raise RuntimeError(
+                f"Failed to download archive for reconstruction {reconstruction_id}\n"
+                f" status code {response.status_code}\n"
+                f" message: {response.text}"
+            )
+
+        try:
             content = response.json()
-            base64_bytes = content["contents"].encode("utf-8")
-            decoded_bytes = base64.b64decode(base64_bytes)
-            return decoded_bytes, content["filename"]
-        else:
-            raise RuntimeError(f"Failed to download archive for reconstruction {reconstruction_id}\n status code {response.status_code}\n message: {response.text}")
+        except ValueError as exc:
+            raise RuntimeError(
+                f"Export endpoint returned non-JSON content for reconstruction {reconstruction_id}."
+            ) from exc
+
+        if not isinstance(content, dict):
+            raise RuntimeError(
+                f"Export endpoint returned invalid JSON payload type for reconstruction {reconstruction_id}: "
+                f"{type(content).__name__}"
+            )
+
+        missing_keys = [key for key in ("contents", "filename") if key not in content]
+        if missing_keys:
+            missing = ", ".join(missing_keys)
+            raise RuntimeError(
+                f"Export response for reconstruction {reconstruction_id} missing keys: {missing}"
+            )
+
+        encoded_contents = content["contents"]
+        filename = content["filename"]
+
+        if not isinstance(encoded_contents, str) or not encoded_contents:
+            raise RuntimeError(
+                f"Export response for reconstruction {reconstruction_id} has invalid 'contents'; "
+                "expected a non-empty base64 string."
+            )
+        if not isinstance(filename, str) or not filename:
+            raise RuntimeError(
+                f"Export response for reconstruction {reconstruction_id} has invalid 'filename'; "
+                "expected a non-empty string."
+            )
+
+        try:
+            decoded_bytes = base64.b64decode(
+                encoded_contents.encode("utf-8"), validate=True
+            )
+        except (binascii.Error, ValueError) as exc:
+            raise RuntimeError(
+                f"Export response for reconstruction {reconstruction_id} contains invalid base64 data."
+            ) from exc
+
+        if not decoded_bytes:
+            raise RuntimeError(
+                f"Export response for reconstruction {reconstruction_id} contained empty archive bytes."
+            )
+
+        return decoded_bytes, filename
