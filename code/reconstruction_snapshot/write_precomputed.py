@@ -176,16 +176,19 @@ def main():
         print(f"Derived precomputed resolution (nm, x/y/z): {resolution_nm_xyz}")
         print(f"Derived precomputed volume_size (x,y,z): {volume_size_xyz}")
 
-        for json_file in jsons:
-            with open(json_file) as f:
-                data = json.load(f)
-
-            neuron = data["neurons"][0]
-            scaled_neuron = _scale_neuron_to_voxel_space(neuron, scale_um_xyz)
-            create_from_dict(scaled_neuron, args.output, info)
     else:
-        # Assumes CCF space with nmcp-precomputed defaults
-        create_from_json_files(jsons, args.output)
+        # Assumes 10um CCFv3 space defaults
+        volume_size_xyz = [1320, 800, 1140]
+        resolution_nm_xyz = [10000, 10000, 10000]
+        scale_um_xyz = [10, 10, 10]
+        info = _build_precomputed_info(volume_size_xyz, resolution_nm_xyz)
+    
+    for json_file in jsons:
+        with open(json_file) as f:
+            data = json.load(f)
+        neuron = data["neurons"][0]
+        scaled_neuron = _scale_neuron_to_voxel_space(neuron, scale_um_xyz)
+        create_from_dict(scaled_neuron, args.output, info)
 
     print(f"Successfully uploaded to {args.output}")
 
