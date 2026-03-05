@@ -17,7 +17,7 @@ From the capsule code directory:
 
 ```bash
 cd /root/capsule/code
-./run <raw-data-asset-uri> <s3-destination-uri> <reconstruction-excel-file> <fused-zarr-path>
+./run <raw-data-asset-uri> <s3-destination-uri> <reconstruction-excel-file> <fused-zarr-path> <processing.json path>
 ```
 
 Arguments:
@@ -25,6 +25,7 @@ Arguments:
 - `<s3-destination-uri>`: Destination prefix for final results (for example, `s3://my-bucket/my-prefix`).
 - `<reconstruction-excel-file>`: Path to the reconstruction spreadsheet (for example, `/root/capsule/data/Neuron Reconstructions.xlsx`).
 - `<fused-zarr-path>`: OME-Zarr group path used to derive specimen-space precomputed resolution and volume size.
+- `<processing.json path>: Path to the processing.json file within the final processed reconstruction asset in CodeOcean, mounted to the capsule.
 
 Example:
 
@@ -34,7 +35,8 @@ cd /root/capsule/code
   "s3://aind-open-data/exaSPIM_685221_2024-04-12_11-46-38" \
   "s3://aind-scratch-data/exaSPIM_685221_2024-04-12_11-46-38_reconstructions_2026-02-27_15-43-02" \
   "/root/capsule/data/Neuron Reconstructions.xlsx" \
-  "s3://aind-open-data/exaSPIM_685221_2024-04-12_11-46-38_fusion_2024-07-22_21-00-15/fused.zarr"
+  "s3://aind-open-data/exaSPIM_685221_2024-04-12_11-46-38_fusion_2024-07-22_21-00-15/fused.zarr" \
+  "/root/capsule/data/swc_processing_pipeline_721332_2026_03_04/processing.json"
 ```
 
 ## Outputs
