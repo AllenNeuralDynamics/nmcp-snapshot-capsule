@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 import argparse
-from datetime import datetime
 from pathlib import Path
 
 from data_description_metadata import create_data_description
-from processing_metadata import create_processing_metadata
+from processing_metadata import load_processing_metadata
 from quality_control_metadata import generate_qc_json
 from utils import (fetch_and_save_json, parse_s3_path, parse_subject,
                    save_json_file)
@@ -72,6 +71,12 @@ def parse_args() -> argparse.Namespace:
             "When provided, QC metadata is restricted to reconstructions present here."
         ),
     )
+    parser.add_argument(
+        "--processing-json",
+        type=Path,
+        required=True,
+        help="Path to processing.json that will be validated and copied to output.",
+    )
     return parser.parse_args()
 
 
@@ -89,6 +94,7 @@ def main() -> None:
     excel_file = Path(args.excel_file)
     output_dir = Path(args.output_dir)
     reconstruction_json_dir = args.reconstruction_json_dir
+    processing_json = args.processing_json
 
     bucket, prefix = parse_s3_path(data_path)
     subject_id, _ = parse_subject(data_path)
@@ -107,7 +113,7 @@ def main() -> None:
     dd = create_data_description(subject_id)
     save_json_file(output_dir, "data_description.json", dd)
 
-    processing = create_processing_metadata(datetime.now())
+    processing = load_processing_metadata(processing_json)
     save_json_file(output_dir, "processing.json", processing)
 
 

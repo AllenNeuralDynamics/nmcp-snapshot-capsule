@@ -2,6 +2,9 @@
 set -ex
 
 # This is the master script for the capsule. When you click "Reproducible Run", the code in this file will execute.
-python create_metadata.py "$1" --excel-file "$2" --output-dir "/results"
+python create_metadata.py "$1" \
+  --excel-file "$2" \
+  --processing-json "/root/capsule/data/processing.json" \
+  --output-dir "/results"
 
 aws s3 cp --recursive --include "*.json" /results $3 

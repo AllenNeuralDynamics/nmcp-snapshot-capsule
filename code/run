@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [[ $# -ne 4 ]]; then
-  echo "Usage: $0 <raw-data-asset-uri> <s3-destination-uri> <reconstruction-excel-file> <fused-zarr-path>" >&2
+if [[ $# -ne 5 ]]; then
+  echo "Usage: $0 <raw-data-asset-uri> <s3-destination-uri> <reconstruction-excel-file> <fused-zarr-path> <processing.json path>" >&2
   exit 1
 fi
 
@@ -15,6 +15,7 @@ echo "Parsed subject ID: ${SUBJECT_ID}"
 S3_DEST=$2
 NEURON_RECONSTRUCTION_EXCEL_FILE=$3
 FUSED_ZARR_PATH=$4
+PROCESSING_JSON=$5
 
 BASE_DIR="/results"
 CCF_SPACE_DIR="$BASE_DIR/ccf_space_reconstructions"
@@ -70,7 +71,8 @@ python reconstruction_metadata/create_metadata.py \
   "$RAW_DATA_ASSET" \
   --excel-file "$NEURON_RECONSTRUCTION_EXCEL_FILE" \
   --output-dir "/results" \
-  --reconstruction-json-dir "$CCF_SPACE_DIR/json"
+  --reconstruction-json-dir "$CCF_SPACE_DIR/json" \
+  --processing-json $PROCESSING_JSON
 
 echo "Uploading /results to $S3_DEST..."
 aws s3 sync /results "$S3_DEST"

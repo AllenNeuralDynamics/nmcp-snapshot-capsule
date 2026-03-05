@@ -1,40 +1,53 @@
 from __future__ import annotations
 
-from datetime import datetime
+import argparse
+import json
+from pathlib import Path
 
-from aind_data_schema.core.processing import (DataProcess, Processing,
-                                              ProcessStage)
-from aind_data_schema_models.process_names import ProcessName
+from aind_data_schema.core.processing import Processing
 
 
-def create_processing_metadata(start_date_time: datetime) -> Processing:
+def load_processing_metadata(processing_json_path: Path) -> Processing:
     """
-    Create processing metadata for the neuron reconstruction pipeline.
+    Load and validate processing metadata from a JSON file.
 
     Parameters
     ----------
-    start_date_time : datetime
-        Timestamp marking when the processing step began.
+    processing_json_path : Path
+        Path to a ``processing.json`` file.
 
     Returns
     -------
     Processing
-        Processing metadata populated with a single ``DataProcess`` entry.
+        Validated processing metadata.
     """
-    processing_info = {
-        "stage": ProcessStage.ANALYSIS,
-        "process_type": ProcessName.NEURON_SKELETON_PROCESSING,
-        "code": {"url": "https://github.com/AllenNeuralDynamics/neuron-tracing-utils"},
-        "name": "Neuron Reconstruction Processing Pipeline",
-        "notes": "Neuron Reconstruction Processing Pipeline",
-        "experimenters": ["MSMA Team"],
-        "start_date_time": start_date_time,
-        "end_date_time": datetime.now(),
-    }
-    process = DataProcess(**processing_info)
-    return Processing(data_processes=[process], dependency_graph=None)
+    with open(processing_json_path, "r", encoding="utf-8") as f:
+        payload = json.load(f)
+
+    return Processing.model_validate(payload)
+
+
+def parse_args() -> argparse.Namespace:
+    """
+    Parse command-line arguments for processing metadata validation.
+
+    Returns
+    -------
+    argparse.Namespace
+        Parsed arguments containing the processing JSON path.
+    """
+    parser = argparse.ArgumentParser(
+        description="Load and validate processing metadata JSON."
+    )
+    parser.add_argument(
+        "processing_json",
+        type=Path,
+        help="Path to processing.json",
+    )
+    return parser.parse_args()
 
 
 if __name__ == "__main__":
-    processing = create_processing_metadata(datetime.now())
+    args = parse_args()
+    processing = load_processing_metadata(args.processing_json)
     print(processing)
