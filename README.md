@@ -36,7 +36,7 @@ cd /root/capsule/code
   "s3://aind-scratch-data/exaSPIM_685221_2024-04-12_11-46-38_reconstructions_2026-02-27_15-43-02" \
   "/root/capsule/data/Neuron Reconstructions.xlsx" \
   "s3://aind-open-data/exaSPIM_685221_2024-04-12_11-46-38_fusion_2024-07-22_21-00-15/fused.zarr" \
-  "/root/capsule/data/swc_processing_pipeline_721332_2026_03_04/processing.json"
+  "/root/capsule/data/swc_processing_pipeline_685221_2026_03_04/processing.json"
 ```
 
 ## Outputs
