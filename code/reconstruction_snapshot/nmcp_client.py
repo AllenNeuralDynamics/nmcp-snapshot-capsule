@@ -4,11 +4,10 @@ import base64
 import binascii
 import time
 from dataclasses import dataclass
-from enum import IntEnum
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple
 
-from nmcpscripting.download_reconstruction import ExportFormat
+from enums import ExportFormat, ReconstructionSpace
 from query_published import query_published
 from utils import with_retries, write_bytes_file, write_text_file
 from zip_utils import ZipExtractor, ZipExtractError
@@ -20,22 +19,6 @@ FORMAT_SUFFIXES: Dict[ExportFormat, str] = {
 }
 
 DEFAULT_BASE_URL = "https://morphology.allenneuraldynamics.org"
-
-
-class ReconstructionSpace(IntEnum):
-    SPECIMEN = 0
-    CCF = 1
-
-    @classmethod
-    def parse_name(cls, value: str) -> "ReconstructionSpace":
-        normalized = value.strip().upper()
-        try:
-            return cls[normalized]
-        except KeyError as exc:
-            names = ", ".join(space.name.lower() for space in cls)
-            raise ValueError(
-                f"Invalid reconstruction space '{value}'. Use one of {{{names}}}."
-            ) from exc
 
 
 def allowed_suffix_for(export_format: ExportFormat) -> str:

@@ -5,14 +5,12 @@ import time
 from pathlib import Path
 from typing import Callable, Optional, Sequence
 
-from nmcpscripting.download_reconstruction import ExportFormat
-
+from enums import ExportFormat, ReconstructionSpace
 from nmcp_client import (
     QueryError,
     NmcpClientConfig,
     NmcpClient,
     NeuronData,
-    ReconstructionSpace,
     allowed_suffix_for,
     DEFAULT_BASE_URL,
 )
