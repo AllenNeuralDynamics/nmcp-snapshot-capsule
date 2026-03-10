@@ -1,25 +1,24 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-unzip awscliv2.zip
+curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64-2.34.5.zip" -o "awscliv2.zip"
+unzip -qq awscliv2.zip
 ./aws/install
 
-conda update conda -y
-conda create -n py311 -c conda-forge python=3.11 pip -y
-source $(conda info --base)/etc/profile.d/conda.sh
-conda activate py311
-
-pip3 install -e git+https://github.com/AllenNeuralDynamics/nmcp-precomputed@4239690e55967c86c3e9b57078f520dfb2b319da#egg=nmcp
-pip3 install -e git+https://github.com/AllenNeuralDynamics/nmcp-scripting@585c81574c282800f2781df103471b37cc2399ce#egg=nmcpscripting
 pip3 install zarr==2.18.2 \
-"numpy<1.24" \
+numcodecs==0.15.1 \
+numpy==1.26.0 \
 s3fs==2025.10.0 \
 gql[requests]==3.5.2 \
 openpyxl==3.1.5 \
-pandas==1.5.3 \
+pandas==2.3.3 \
 boto3==1.40.49 \
-aind-data-schema==2.5.1 \
+aind-data-schema==2.6.0 \
 matplotlib==3.10.7
+
+# latest allensdk must be installed before nmcp-precomputed to avoid installation error with py3.12
+pip3 install -e git+https://github.com/AllenInstitute/AllenSDK@1bdca3ad884c3a5edea8236161424650603e6f29#egg=allensdk
+pip3 install -e git+https://github.com/AllenNeuralDynamics/nmcp-precomputed@3ffc7a53d26c6900a7c588abae4394a312efc117#egg=nmcp
+pip3 install -e git+https://github.com/AllenNeuralDynamics/nmcp-scripting@585c81574c282800f2781df103471b37cc2399ce#egg=nmcpscripting
 
 echo "All done!"
