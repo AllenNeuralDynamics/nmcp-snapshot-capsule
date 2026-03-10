@@ -142,7 +142,7 @@ def build_quality_control(
         status_history=_pending_status(),
         description=None,
         reference=None,
-        tags=[],
+        tags={},
         evaluated_assets=None,
         curation_history=[],
     )
