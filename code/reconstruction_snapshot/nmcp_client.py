@@ -4,6 +4,7 @@ import base64
 import binascii
 import time
 from dataclasses import dataclass
+from enum import IntEnum
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple
 
@@ -19,6 +20,22 @@ FORMAT_SUFFIXES: Dict[ExportFormat, str] = {
 }
 
 DEFAULT_BASE_URL = "https://morphology.allenneuraldynamics.org"
+
+
+class ReconstructionSpace(IntEnum):
+    SPECIMEN = 0
+    CCF = 1
+
+    @classmethod
+    def parse_name(cls, value: str) -> "ReconstructionSpace":
+        normalized = value.strip().upper()
+        try:
+            return cls[normalized]
+        except KeyError as exc:
+            names = ", ".join(space.name.lower() for space in cls)
+            raise ValueError(
+                f"Invalid reconstruction space '{value}'. Use one of {{{names}}}."
+            ) from exc
 
 
 def allowed_suffix_for(export_format: ExportFormat) -> str:
@@ -119,7 +136,7 @@ class NmcpClient:
         self,
         neuron: NeuronData,
         export_format: ExportFormat,
-        reconstruction_space: int,
+        reconstruction_space: ReconstructionSpace,
         *,
         output_path: Optional[Path | str] = None,
         attempts: int = 1,
@@ -171,7 +188,7 @@ class NmcpClient:
         self,
         neuron: NeuronData,
         *,
-        reconstruction_space: int,
+        reconstruction_space: ReconstructionSpace,
         output_path: Optional[Path | str] = None,
         attempts: int = 1,
         base_sleep: float = 0.5,
@@ -208,7 +225,7 @@ class NmcpClient:
         self,
         neuron: NeuronData,
         *,
-        reconstruction_space: int,
+        reconstruction_space: ReconstructionSpace,
         output_path: Optional[Path | str] = None,
         attempts: int = 1,
         base_sleep: float = 0.5,
@@ -238,7 +255,7 @@ class NmcpClient:
         self,
         neuron: NeuronData,
         export_format: ExportFormat,
-        reconstruction_space: int,
+        reconstruction_space: ReconstructionSpace,
         output_path: Optional[Path | str],
         attempts: int,
         base_sleep: float,
@@ -272,12 +289,12 @@ class NmcpClient:
         self,
         reconstruction_id: str,
         export_format: ExportFormat,
-        reconstruction_space: int = 0,
+        reconstruction_space: ReconstructionSpace = ReconstructionSpace.SPECIMEN,
     ) -> Tuple[bytes, str]:
         payload = {
             "ids": [reconstruction_id],
             "format": export_format.value,
-            "reconstructionSpace": reconstruction_space,
+            "reconstructionSpace": reconstruction_space.value,
         }
         response = requests.post(
             self._config.export_url,

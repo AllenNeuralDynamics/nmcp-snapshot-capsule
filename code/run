@@ -28,7 +28,7 @@ python reconstruction_snapshot/download_neurons.py \
   --format json \
   --output "$CCF_SPACE_DIR/json" \
   --subject "$SUBJECT_ID" \
-  --reconstruction-space 1 \
+  --reconstruction-space ccf \
   --verbose
 
 echo "Downloading CCF space SWCs for subject ${SUBJECT_ID}..."
@@ -36,7 +36,7 @@ python reconstruction_snapshot/download_neurons.py \
   --format swc \
   --output "$CCF_SPACE_DIR/swc" \
   --subject "$SUBJECT_ID" \
-  --reconstruction-space 1 \
+  --reconstruction-space ccf \
   --verbose
 
 echo "Downloading specimen space JSONs for subject ${SUBJECT_ID}..."
@@ -44,7 +44,7 @@ python reconstruction_snapshot/download_neurons.py \
   --format json \
   --output "$SPECIMEN_SPACE_DIR/json" \
   --subject "$SUBJECT_ID" \
-  --reconstruction-space 0 \
+  --reconstruction-space specimen \
   --verbose
 
 echo "Downloading specimen space SWCs for subject ${SUBJECT_ID}..."
@@ -52,7 +52,7 @@ python reconstruction_snapshot/download_neurons.py \
   --format swc \
   --output "$SPECIMEN_SPACE_DIR/swc" \
   --subject "$SUBJECT_ID" \
-  --reconstruction-space 0 \
+  --reconstruction-space specimen \
   --verbose
 
 echo "Generating precomputed file for CCF reconstructions..."

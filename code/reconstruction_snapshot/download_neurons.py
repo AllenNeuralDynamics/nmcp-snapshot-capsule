@@ -12,6 +12,7 @@ from nmcp_client import (
     NmcpClientConfig,
     NmcpClient,
     NeuronData,
+    ReconstructionSpace,
     allowed_suffix_for,
     DEFAULT_BASE_URL,
 )
@@ -33,7 +34,7 @@ def _select_download_fn(
 def download_neurons(
     client: NmcpClient,
     export_format: ExportFormat,
-    reconstruction_space: int,
+    reconstruction_space: ReconstructionSpace,
     output_dir: Path | str,
     subjects: Optional[Sequence[str]] = None,
     *,
@@ -130,6 +131,13 @@ def _parse_export_format(value: str) -> ExportFormat:
         ) from exc
 
 
+def _parse_reconstruction_space(value: str) -> ReconstructionSpace:
+    try:
+        return ReconstructionSpace.parse_name(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(str(exc)) from exc
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Create the CLI argument parser."""
     parser = argparse.ArgumentParser(description=__doc__)
@@ -148,7 +156,13 @@ def build_parser() -> argparse.ArgumentParser:
         default=DEFAULT_EXPORT_FORMAT.name.lower(),
         type=_parse_export_format,
     )
-    parser.add_argument("-r", "--reconstruction-space", type=int, default=0)
+    parser.add_argument(
+        "-r",
+        "--reconstruction-space",
+        type=_parse_reconstruction_space,
+        default=ReconstructionSpace.SPECIMEN,
+        help="Reconstruction space to download. Valid values: specimen, ccf.",
+    )
     parser.add_argument(
         "-o",
         "--output",
@@ -210,9 +224,13 @@ def main(cli_args: Optional[Sequence[str]] = None) -> None:
     client = NmcpClient(config)
 
     logging.info(
-        "Starting download: base_url=%s, format=%s, output=%s, subjects=%s, jobs=%d",
+        (
+            "Starting download: base_url=%s, format=%s, reconstruction_space=%s, "
+            "output=%s, subjects=%s, jobs=%d"
+        ),
         config.base_url,
         args.format.name,
+        args.reconstruction_space.name.lower(),
         str(args.output),
         args.subjects,
         args.jobs,

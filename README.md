@@ -5,8 +5,8 @@ This capsule builds a reconstruction snapshot for one exaSPIM subject and publis
 It performs the following workflow:
 - Parses the subject ID from a raw data asset URI.
 - Downloads published neuron reconstructions from the NMCP service in both spaces:
-  - CCF space (`reconstruction-space=1`): JSON and SWC
-  - Specimen space (`reconstruction-space=0`): JSON and SWC
+  - CCF space: JSON and SWC
+  - Specimen space: JSON and SWC
 - Generates Neuroglancer precomputed skeleton outputs from downloaded JSON reconstructions.
 - Generates reconstruction metadata JSON files.
 - Uploads everything under `/results` to an S3 destination generated from the raw asset name and a destination bucket.
