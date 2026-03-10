@@ -2,7 +2,7 @@
 set -euo pipefail
 
 if [[ $# -ne 5 ]]; then
-  echo "Usage: $0 <raw-data-asset-uri> <s3-destination-uri> <reconstruction-excel-file> <fused-zarr-path> <processing.json path>" >&2
+  echo "Usage: $0 <raw-data-asset-uri> <s3-destination-bucket> <reconstruction-excel-file> <fused-zarr-path> <processing.json path>" >&2
   exit 1
 fi
 
@@ -12,7 +12,7 @@ RAW_DATA_ASSET=$1
 SUBJECT_ID=$(echo "$RAW_DATA_ASSET" | grep -oP 'exaSPIM_\K[^_]+')
 echo "Parsed subject ID: ${SUBJECT_ID}"
 
-S3_DEST=$2
+DEST_BUCKET=$2
 NEURON_RECONSTRUCTION_EXCEL_FILE=$3
 FUSED_ZARR_PATH=$4
 PROCESSING_JSON=$5
@@ -74,7 +74,7 @@ python reconstruction_metadata/create_metadata.py \
   --reconstruction-json-dir "$CCF_SPACE_DIR/json" \
   --processing-json $PROCESSING_JSON
 
-echo "Uploading /results to $S3_DEST..."
-aws s3 sync /results "$S3_DEST"
+echo "Uploading /results to destination bucket $DEST_BUCKET..."
+python upload_results.py "$RAW_DATA_ASSET" "$DEST_BUCKET"
 
 echo "All tasks completed successfully."
