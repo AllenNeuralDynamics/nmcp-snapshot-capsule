@@ -4,11 +4,10 @@ FROM $REGISTRY_HOST/codeocean/mambaforge3:24.5.0-0-python3.12.4-ubuntu22.04
 
 ARG DEBIAN_FRONTEND=noninteractive
 ARG GIT_ASKPASS
-COPY git-askpass /
+COPY git-ask-pass /
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-        git=1:2.34.1-1ubuntu1.15 \
         jq=1.6-2.1ubuntu3.1 \
         wget=1.21.2-2ubuntu1.1 \
     && rm -rf /var/lib/apt/lists/*
