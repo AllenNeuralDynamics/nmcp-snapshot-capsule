@@ -1,11 +1,17 @@
 from __future__ import annotations
 
+import os
 from datetime import datetime, timezone
 from enum import Enum
 from numbers import Integral
+from pathlib import Path
 from typing import Any, Optional, Tuple
 
 import pandas as pd
+
+SMARTSHEET_ACCESS_TOKEN_ENV = 'SMARTSHEET_ACCESS_TOKEN'
+SMARTSHEET_SHEET_ID_ENV = "SMARTSHEET_SHEET_ID"
+DEFAULT_SMARTSHEET_EXPORT_NAME = "smartsheet_export.xls"
 
 
 class SmartsheetField(str, Enum):
@@ -220,3 +226,76 @@ def safe_float(value: Any) -> Optional[float]:
         return float(value)
     except (TypeError, ValueError):
         return None
+
+
+def fetch_latest_smartsheet_excel(
+    download_dir: str | Path,
+    *,
+    file_name: str = DEFAULT_SMARTSHEET_EXPORT_NAME,
+) -> Path:
+    """
+    Download the configured Smartsheet as an Excel file.
+
+    Parameters
+    ----------
+    download_dir : str | Path
+        Directory where the exported workbook will be stored.
+    file_name : str, optional
+        Local filename to use for the downloaded workbook.
+
+    Returns
+    -------
+    Path
+        Path to the downloaded Excel workbook.
+
+    Raises
+    ------
+    RuntimeError
+        If required environment variables are missing, the SDK is unavailable,
+        or the Smartsheet export cannot be downloaded.
+    """
+    access_token = safe_string(os.getenv(SMARTSHEET_ACCESS_TOKEN_ENV))
+    if access_token is None:
+        raise RuntimeError(f"{SMARTSHEET_ACCESS_TOKEN_ENV} is not set.")
+
+    raw_sheet_id = safe_string(os.getenv(SMARTSHEET_SHEET_ID_ENV))
+    if raw_sheet_id is None:
+        raise RuntimeError(f"{SMARTSHEET_SHEET_ID_ENV} is not set.")
+
+    try:
+        sheet_id = int(raw_sheet_id)
+    except ValueError as exc:
+        raise RuntimeError(
+            f"{SMARTSHEET_SHEET_ID_ENV} must be an integer sheet ID, got {raw_sheet_id!r}."
+        ) from exc
+
+    try:
+        import smartsheet
+    except ImportError as exc:
+        raise RuntimeError(
+            "smartsheet-python-sdk is not installed in the runtime environment."
+        ) from exc
+
+    download_path = Path(download_dir)
+    download_path.mkdir(parents=True, exist_ok=True)
+    target_path = download_path / file_name
+
+    try:
+        client = smartsheet.Smartsheet(access_token)
+        client.errors_as_exceptions(True)
+        client.Sheets.get_sheet_as_excel(
+            sheet_id,
+            str(download_path),
+            alternate_file_name=file_name,
+        )
+    except Exception as exc:
+        raise RuntimeError(
+            f"Failed to download Smartsheet sheet {sheet_id} as Excel: {exc}"
+        ) from exc
+
+    if not target_path.exists():
+        raise RuntimeError(
+            f"Smartsheet sheet {sheet_id} download completed without creating {target_path}."
+        )
+
+    return target_path

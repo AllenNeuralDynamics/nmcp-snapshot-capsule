@@ -17,15 +17,15 @@ From the capsule code directory:
 
 ```bash
 cd /root/capsule/code
-./run <raw-data-asset-uri> <s3-destination-bucket> <reconstruction-excel-file> <fused-zarr-path> <processing.json path>
+./run <raw-data-asset-uri> <s3-destination-bucket> <fused-zarr-path> <processing.json path>
 ```
 
 Arguments:
 - `<raw-data-asset-uri>`: Source dataset URI. Must contain `exaSPIM_<subject>_...` so the script can extract the subject ID and download required metadata files.
 - `<s3-destination-bucket>`: Destination bucket for final results (for example, `aind-open-data` or `s3://aind-open-data`).
-- `<reconstruction-excel-file>`: Path to the reconstruction spreadsheet (for example, `/root/capsule/data/Neuron Reconstructions.xlsx`).
 - `<fused-zarr-path>`: OME-Zarr group path used to derive specimen-space precomputed resolution and volume size.
-- `<processing.json path>: Path to the processing.json file within the final processed reconstruction asset in CodeOcean, mounted to the capsule.
+- `<processing.json path>`: Path to the processing.json file within the final processed reconstruction asset in CodeOcean, mounted to the capsule.
+- The reconstruction spreadsheet is always downloaded from Smartsheet at runtime.
 
 Example:
 
@@ -34,7 +34,6 @@ cd /root/capsule/code
 ./run \
   "s3://aind-open-data/exaSPIM_685221_2024-04-12_11-46-38" \
   "aind-open-data" \
-  "/root/capsule/data/Neuron Reconstructions.xlsx" \
   "s3://aind-open-data/exaSPIM_685221_2024-04-12_11-46-38_fusion_2024-07-22_21-00-15/fused.zarr" \
   "/root/capsule/data/swc_processing_pipeline_685221_2026_03_04/processing.json"
 ```
@@ -67,7 +66,11 @@ Main outputs:
 ## Prerequisites
 
 - AWS CLI configured with credentials/permissions to read required inputs and write to the generated destination under `<s3-destination-bucket>`.
+- Smartsheet credentials configured in Code Ocean secrets:
+  - `SMARTSHEET_ACCESS_TOKEN`
+  - `SMARTSHEET_SHEET_ID`
 - Network access to:
   - `https://morphology.allenneuraldynamics.org`
+  - `https://api.smartsheet.com`
   - Referenced S3 paths
 - Capsule dependencies installed (handled by this capsule environment setup).

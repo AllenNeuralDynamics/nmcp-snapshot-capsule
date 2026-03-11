@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 import argparse
+from contextlib import contextmanager
 from pathlib import Path
+from tempfile import TemporaryDirectory
+from typing import Iterator
 
 from data_description_metadata import create_data_description
 from processing_metadata import load_processing_metadata
 from quality_control_metadata import generate_qc_json
+from smartsheet_utils import fetch_latest_smartsheet_excel
 from utils import (fetch_and_save_json, parse_s3_path, parse_subject,
                    save_json_file)
 
@@ -43,7 +47,7 @@ def parse_args() -> argparse.Namespace:
     Returns
     -------
     argparse.Namespace
-        Parsed arguments including dataset path, Excel file, and output directory.
+        Parsed arguments including dataset path and output directory.
     """
     parser = argparse.ArgumentParser(
         description="Generate metadata outputs for a reconstruction dataset."
@@ -51,11 +55,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "data_path",
         help="S3 path to the dataset root (e.g., s3://bucket/prefix)",
-    )
-    parser.add_argument(
-        "--excel-file",
-        default="/root/capsule/data/Neuron Reconstructions.xlsx",
-        help="Path to the neuron reconstruction Smartsheet export.",
     )
     parser.add_argument(
         "--output-dir",
@@ -80,6 +79,30 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+@contextmanager
+def download_smartsheet_workbook() -> Iterator[Path]:
+    """
+    Download the workbook used for reconstruction metadata generation.
+
+    Yields
+    ------
+    Path
+        Filesystem path to an Excel workbook that ``pandas.read_excel`` can load.
+
+    Raises
+    ------
+    RuntimeError
+        If the Smartsheet download fails.
+    """
+
+    with TemporaryDirectory(prefix="smartsheet_export_") as temp_dir:
+        try:
+            downloaded_excel = fetch_latest_smartsheet_excel(temp_dir)
+        except RuntimeError as exc:
+            raise RuntimeError("Smartsheet export could not be fetched.") from exc
+        yield downloaded_excel
+
+
 def main() -> None:
     """
     Execute the metadata generation workflow for a reconstruction dataset.
@@ -91,7 +114,6 @@ def main() -> None:
     args = parse_args()
 
     data_path = args.data_path
-    excel_file = Path(args.excel_file)
     output_dir = Path(args.output_dir)
     reconstruction_json_dir = args.reconstruction_json_dir
     processing_json = args.processing_json
@@ -101,12 +123,13 @@ def main() -> None:
 
     download_precompiled_metadata(bucket, prefix, output_dir)
 
-    qc = generate_qc_json(
-        mouse_id=str(subject_id),
-        excel_path=excel_file,
-        output_dir=output_dir,
-        reconstruction_json_dir=reconstruction_json_dir,
-    )
+    with download_smartsheet_workbook() as resolved_excel_file:
+        qc = generate_qc_json(
+            mouse_id=str(subject_id),
+            excel_path=resolved_excel_file,
+            output_dir=output_dir,
+            reconstruction_json_dir=reconstruction_json_dir,
+        )
 
     save_json_file(output_dir, filename="quality_control.json", payload=qc)
 

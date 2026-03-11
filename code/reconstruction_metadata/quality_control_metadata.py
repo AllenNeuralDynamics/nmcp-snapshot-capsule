@@ -181,7 +181,8 @@ def generate_qc_json(
     mouse_id : int | str
         Mouse identifier used to filter the Smartsheet rows.
     excel_path : str | Path
-        Path to the Smartsheet export containing reconstruction metadata.
+        Path to the Smartsheet export containing reconstruction metadata. This
+        may be a local workbook or a runtime-downloaded Smartsheet export.
     output_dir : str | Path
         Output directory (unused placeholder for compatibility).
     status_filter : str | None, optional
