@@ -1,2 +1,6 @@
 metadata_version: 1
 name: nmcp snapshot capsule
+description: Capsule to archive subject-level reconstructions from the Neuron Morphology
+  Community Portal to an S3 location.
+authors:
+- name: Cameron Arshadi

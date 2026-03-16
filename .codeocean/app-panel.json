@@ -1,0 +1,41 @@
+{
+	"version": 1,
+	"parameters": [
+		{
+			"id": "HEsOsarJggV4KH5R",
+			"name": "Raw data asset S3 URI",
+			"description": "Full S3 URI to the raw data",
+			"help_text": "Example: \"s3://aind-open-data/exaSPIM_721332_2025-04-05_14-48-36\"",
+			"type": "text",
+			"value_type": "string",
+			"required": true
+		},
+		{
+			"id": "d1kUw7WaDNk5pH8N",
+			"name": "Output S3 bucket",
+			"description": "The S3 bucket where the results will be uploaded",
+			"help_text": "Example: \"aind-open-data\"",
+			"type": "text",
+			"value_type": "string",
+			"required": true
+		},
+		{
+			"id": "NYsVhnlAMb1P4wB1",
+			"name": "Fused zarr array S3 URI",
+			"description": "Full S3 URI to the fused Zarr array",
+			"help_text": "Example: \"s3://aind-open-data/exaSPIM_721332_2025-04-05_14-48-36_flatfield-correction_2025-04-24_20-06-12_fusion_2025-05-06_17-30-15/fused.zarr\"",
+			"type": "text",
+			"value_type": "string",
+			"required": true
+		},
+		{
+			"id": "glaQklnzdkOsAubc",
+			"name": "Path to processing.json for processed SWC asset",
+			"description": "Path to the processing.json file within the attached processed SWC data asset",
+			"help_text": "Example: \"/root/capsule/data/swc_processing_pipeline_685221_2026_03_04/processing.json\"",
+			"type": "text",
+			"value_type": "string",
+			"required": true
+		}
+	]
+}
