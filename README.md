@@ -23,7 +23,7 @@ cd /root/capsule/code
 Arguments:
 - `<raw-data-asset-uri>`: Source dataset URI. Must contain `exaSPIM_<subject>_...` so the script can extract the subject ID and download required metadata files.
 - `<s3-destination-bucket>`: Destination bucket for final results (for example, `aind-open-data` or `s3://aind-open-data`).
-- `<fused-zarr-path>`: OME-Zarr group path used to derive specimen-space precomputed resolution and volume size.
+- `<fused-zarr-path>`: OME-Zarr group path used to derive specimen-space precomputed resolution and volume size, and to populate `data_description.source_data` with the top-level fused asset URI. Supported layouts include `s3://bucket/<asset>/fused.zarr` and `s3://bucket/<asset>/fusion/fused.zarr`.
 - `<processing.json path>`: Path to the processing.json file within the final processed reconstruction asset in CodeOcean, mounted to the capsule.
 - The reconstruction spreadsheet is always downloaded from Smartsheet at runtime.
 

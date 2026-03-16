@@ -76,6 +76,14 @@ def parse_args() -> argparse.Namespace:
         required=True,
         help="Path to processing.json that will be validated and copied to output.",
     )
+    parser.add_argument(
+        "--fused-zarr-path",
+        required=True,
+        help=(
+            "S3 path to the fused zarr group. Used to populate "
+            "data_description.source_data with the top-level fused asset URI."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -117,9 +125,10 @@ def main() -> None:
     output_dir = Path(args.output_dir)
     reconstruction_json_dir = args.reconstruction_json_dir
     processing_json = args.processing_json
+    fused_zarr_path = args.fused_zarr_path
 
     bucket, prefix = parse_s3_path(data_path)
-    subject_id, _ = parse_subject(data_path)
+    subject_id, dataset_name = parse_subject(data_path)
 
     download_precompiled_metadata(bucket, prefix, output_dir)
 
@@ -133,7 +142,7 @@ def main() -> None:
 
     save_json_file(output_dir, filename="quality_control.json", payload=qc)
 
-    dd = create_data_description(subject_id)
+    dd = create_data_description(subject_id, dataset_name, fused_zarr_path)
     save_json_file(output_dir, "data_description.json", dd)
 
     processing = load_processing_metadata(processing_json)

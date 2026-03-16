@@ -76,7 +76,8 @@ python reconstruction_metadata/create_metadata.py \
   "$RAW_DATA_ASSET" \
   --output-dir "/results" \
   --reconstruction-json-dir "$CCF_SPACE_DIR/json" \
-  --processing-json "$PROCESSING_JSON"
+  --processing-json "$PROCESSING_JSON" \
+  --fused-zarr-path "$FUSED_ZARR_PATH"
 
 echo "Uploading /results to destination bucket $DEST_BUCKET..."
 python upload_results.py "$RAW_DATA_ASSET" "$DEST_BUCKET"
