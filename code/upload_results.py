@@ -1,11 +1,9 @@
 from __future__ import annotations
 
 import argparse
+import json
 import subprocess
-from datetime import datetime, timezone
 from pathlib import Path
-
-from reconstruction_metadata.utils import parse_subject
 
 
 def normalize_bucket(bucket: str) -> str:
@@ -22,23 +20,32 @@ def normalize_bucket(bucket: str) -> str:
     return normalized
 
 
-def build_destination_uri(
-    raw_data_asset_uri: str,
-    destination_bucket: str,
-    now: datetime | None = None,
-) -> str:
-    try:
-        _, dataset_name = parse_subject(raw_data_asset_uri)
-    except ValueError as exc:
+def load_data_description_name(source_dir: Path) -> str:
+    metadata_path = source_dir / "data_description.json"
+    if not metadata_path.is_file():
         raise ValueError(
-            "Raw data asset URI must contain an exaSPIM_<subject>_<date>_<time> token."
-        ) from exc
+            f"Expected metadata file was not found: {metadata_path}"
+        )
 
+    with open(metadata_path, "r", encoding="utf-8") as f:
+        payload = json.load(f)
+
+    name = payload.get("name")
+    if not isinstance(name, str) or not name.strip():
+        raise ValueError(
+            f"Metadata file must contain a non-empty 'name': {metadata_path}"
+        )
+
+    return name.strip()
+
+
+def build_destination_uri(
+    destination_bucket: str,
+    source_dir: Path,
+) -> str:
     bucket = normalize_bucket(destination_bucket)
-    timestamp = now or datetime.now(timezone.utc)
-    date_str = timestamp.strftime("%Y-%m-%d")
-    time_str = timestamp.strftime("%H-%M-%S")
-    return f"s3://{bucket}/{dataset_name}_reconstructions_{date_str}_{time_str}"
+    data_description_name = load_data_description_name(source_dir)
+    return f"s3://{bucket}/{data_description_name}"
 
 
 def sync_results(
@@ -57,9 +64,15 @@ def sync_results(
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Build the results destination URI and upload /results to S3."
+        description=(
+            "Build the results destination URI from /results/data_description.json "
+            "and upload /results to S3."
+        )
     )
-    parser.add_argument("raw_data_asset_uri", help="Raw data asset S3 URI.")
+    parser.add_argument(
+        "raw_data_asset_uri",
+        help="Raw data asset S3 URI. Retained for CLI compatibility.",
+    )
     parser.add_argument("destination_bucket", help="Destination S3 bucket name.")
     parser.add_argument(
         "--source-dir",
@@ -73,8 +86,8 @@ def main() -> None:
     args = parse_args()
     source_dir = Path(args.source_dir)
     destination_uri = build_destination_uri(
-        args.raw_data_asset_uri,
         args.destination_bucket,
+        source_dir,
     )
     print(f"Resolved destination URI: {destination_uri}")
     sync_results(source_dir, destination_uri)
