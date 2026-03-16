@@ -1,0 +1,85 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat >&2 <<'EOF'
+Usage:
+  ./run <raw-data-asset-uri> <s3-destination-bucket> <fused-zarr-path> <processing.json path>
+EOF
+}
+
+if [[ $# -eq 4 ]]; then
+  RAW_DATA_ASSET=$1
+  DEST_BUCKET=$2
+  FUSED_ZARR_PATH=$3
+  PROCESSING_JSON=$4
+else
+  usage
+  exit 1
+fi
+
+# parse subject ID from raw data asset string using a regex
+SUBJECT_ID=$(echo "$RAW_DATA_ASSET" | grep -oP 'exaSPIM_\K[^_]+')
+echo "Parsed subject ID: ${SUBJECT_ID}"
+
+BASE_DIR="/results"
+CCF_SPACE_DIR="$BASE_DIR/ccf_space_reconstructions"
+SPECIMEN_SPACE_DIR="$BASE_DIR/specimen_space_reconstructions"
+
+mkdir -p "$CCF_SPACE_DIR" "$SPECIMEN_SPACE_DIR"
+
+echo "Downloading CCF space JSONs for subject ${SUBJECT_ID}..."
+python reconstruction_snapshot/download_neurons.py \
+  --format json \
+  --output "$CCF_SPACE_DIR/json" \
+  --subject "$SUBJECT_ID" \
+  --reconstruction-space ccf \
+  --verbose
+
+echo "Downloading CCF space SWCs for subject ${SUBJECT_ID}..."
+python reconstruction_snapshot/download_neurons.py \
+  --format swc \
+  --output "$CCF_SPACE_DIR/swc" \
+  --subject "$SUBJECT_ID" \
+  --reconstruction-space ccf \
+  --verbose
+
+echo "Downloading specimen space JSONs for subject ${SUBJECT_ID}..."
+python reconstruction_snapshot/download_neurons.py \
+  --format json \
+  --output "$SPECIMEN_SPACE_DIR/json" \
+  --subject "$SUBJECT_ID" \
+  --reconstruction-space specimen \
+  --verbose
+
+echo "Downloading specimen space SWCs for subject ${SUBJECT_ID}..."
+python reconstruction_snapshot/download_neurons.py \
+  --format swc \
+  --output "$SPECIMEN_SPACE_DIR/swc" \
+  --subject "$SUBJECT_ID" \
+  --reconstruction-space specimen \
+  --verbose
+
+echo "Generating precomputed file for CCF reconstructions..."
+python reconstruction_snapshot/write_precomputed.py \
+  --input-dir "$CCF_SPACE_DIR/json" \
+  --output "$CCF_SPACE_DIR/reconstructions.precomputed"
+
+echo "Generating precomputed file for specimen space reconstructions..."
+python reconstruction_snapshot/write_precomputed.py \
+  --input-dir "$SPECIMEN_SPACE_DIR/json" \
+  --output "$SPECIMEN_SPACE_DIR/reconstructions.precomputed" \
+  --zarr-group "$FUSED_ZARR_PATH"
+
+echo "Creating reconstruction metadata..."
+python reconstruction_metadata/create_metadata.py \
+  "$RAW_DATA_ASSET" \
+  --output-dir "/results" \
+  --reconstruction-json-dir "$CCF_SPACE_DIR/json" \
+  --processing-json "$PROCESSING_JSON" \
+  --fused-zarr-path "$FUSED_ZARR_PATH"
+
+echo "Uploading /results to destination bucket $DEST_BUCKET..."
+python upload_results.py "$RAW_DATA_ASSET" "$DEST_BUCKET"
+
+echo "All tasks completed successfully."

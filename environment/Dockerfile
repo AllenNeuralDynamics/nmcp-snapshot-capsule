@@ -1,23 +1,24 @@
-# hash:sha256:9a841403a596d346215a2475deaf67a62333737e659182382607c4672e6f1190
+# hash:sha256:3e66fa9e4c7f2ea6ac141f5aba607ef0abe1ba2a1b038ce0366170a4362f0ae8
 ARG REGISTRY_HOST
-FROM $REGISTRY_HOST/codeocean/mambaforge3:23.1.0-4-python3.10.12-ubuntu22.04
+FROM $REGISTRY_HOST/codeocean/mambaforge3:24.5.0-0-python3.12.4-ubuntu22.04
 
 ARG DEBIAN_FRONTEND=noninteractive
 ARG GIT_ASKPASS
-COPY git-askpass /git-askpass
+COPY git-ask-pass /
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-        git \
-        jq \
-        wget \
+        jq=1.6-2.1ubuntu3.1 \
+        wget=1.21.2-2ubuntu1.1 \
     && rm -rf /var/lib/apt/lists/*
 
-RUN --mount=type=secret,id=git-access-token \
-    GIT_ACCESS_TOKEN="$(cat /run/secrets/git-access-token)" \
-    pip3 install -U --no-cache-dir \
-    s3fs \
-    -e git+https://github.com/AllenNeuralDynamics/nmcp-scripting@585c81574c282800f2781df103471b37cc2399ce#egg=nmcpscripting
+ADD "https://github.com/coder/code-server/releases/download/v4.100.3/code-server-4.100.3-linux-amd64.tar.gz" /.code-server/code-server.tar.gz
+	
+RUN cd /.code-server \
+    && tar -xvf code-server.tar.gz \
+    && rm code-server.tar.gz \
+    && ln -s /.code-server/code-server-4.100.3-linux-amd64/bin/code-server /usr/bin/code-server \
+    && mkdir -p /.vscode/extensions
 
 COPY postInstall /
 RUN --mount=type=secret,id=secrets . /run/secrets/secrets \

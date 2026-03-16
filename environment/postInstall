@@ -1,3 +1,25 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
-set -e
+curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64-2.34.5.zip" -o "awscliv2.zip"
+unzip -qq awscliv2.zip
+./aws/install
+
+pip3 install zarr==2.18.2 \
+numcodecs==0.15.1 \
+numpy==2.4.3 \
+s3fs==2025.10.0 \
+gql[requests]==3.5.2 \
+openpyxl==3.1.5 \
+pandas==2.3.3 \
+xlrd==2.0.2 \
+smartsheet-python-sdk==3.7.2 \
+boto3==1.40.49 \
+aind-data-schema==2.6.0 \
+matplotlib==3.10.7
+
+# latest allensdk must be installed before nmcp-precomputed to avoid installation error with py3.12
+pip3 install -e "git+https://github.com/AllenInstitute/AllenSDK@1bdca3ad884c3a5edea8236161424650603e6f29#egg=allensdk"
+pip3 install -e "git+https://github.com/AllenNeuralDynamics/nmcp-precomputed@v3.0.3#egg=nmcp"
+
+echo "All done!"
