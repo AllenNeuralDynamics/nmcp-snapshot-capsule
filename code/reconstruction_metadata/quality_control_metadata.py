@@ -1,11 +1,9 @@
 from __future__ import annotations
 
-import json
 import logging
-import warnings
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Iterable, List, Optional
+from typing import Any, Iterable
 
 import pandas as pd
 from aind_data_schema.core.quality_control import (CurationMetric, QCStatus,
@@ -34,7 +32,6 @@ OPTIONAL_FIELDS = (
     SmartsheetField.ASSIGNED_TYPE,
     SmartsheetField.SEGMENTATION_VERSION,
     SmartsheetField.ANNOTATOR_2,
-    SmartsheetField.NOTES,
 )
 STATUS_COLUMN = SmartsheetField.STATUS_1
 DEFAULT_STATUS_FILTER = SmartsheetStatus.COMPLETED.value
@@ -113,7 +110,6 @@ def build_quality_control(
     *,
     curation_values: dict[str, dict[str, Any]],
     annotators: Iterable[str],
-    notes: Optional[str] = None,
 ) -> QualityControl:
     """
     Assemble a ``QualityControl`` record for a cohort of reconstructions.
@@ -124,8 +120,6 @@ def build_quality_control(
         Mapping from neuron identifiers to their extracted Smartsheet fields.
     annotators : Iterable[str]
         Collection of annotator names contributing to the dataset.
-    notes : str, optional
-        Aggregated free-text notes to attach to the QC record.
 
     Returns
     -------
@@ -159,7 +153,6 @@ def build_quality_control(
         metrics=[curation_metric],
         key_experimenters=unique_annotators or None,
         default_grouping=["core"],  # minimal non-empty grouping
-        notes=notes,
         allow_tag_failures=[],  # user can override later
     )
     return qc
@@ -236,7 +229,6 @@ def generate_qc_json(
 
     curation_values: dict[str, dict[str, Any]] = {}
     annotators: set[str] = set()
-    collected_notes: List[str] = []
 
     for idx, row in rows.iterrows():
         cell_id = ensure_cell_id(
@@ -273,7 +265,6 @@ def generate_qc_json(
             segmentation_version = segmentation_version.strip() or None
         elif pd.isna(segmentation_version):
             segmentation_version = None
-        note = safe_string(row.get(SmartsheetField.NOTES.value))
         annotator1 = safe_string(row.get(SmartsheetField.ANNOTATOR_1.value))
         annotator2 = safe_string(row.get(SmartsheetField.ANNOTATOR_2.value))
 
@@ -301,7 +292,6 @@ def generate_qc_json(
             SmartsheetField.SEGMENTATION_VERSION.value: segmentation_version,
             SmartsheetField.ANNOTATOR_1.value: annotator1,
             SmartsheetField.ANNOTATOR_2.value: annotator2,
-            SmartsheetField.NOTES.value: note,
         }
 
         missing_required = [
@@ -326,9 +316,6 @@ def generate_qc_json(
         sanitized_entry = {k: v for k, v in entry.items() if v is not None}
         curation_values[cell_id] = sanitized_entry
 
-        if note:
-            collected_notes.append(f"{cell_id}: {note}")
-
     if not curation_values:
         if downloaded_cell_ids is not None and json_dir is not None:
             raise ValueError(
@@ -339,11 +326,9 @@ def generate_qc_json(
             f"No usable reconstruction records found for Mouse ID {mouse_id}"
         )
 
-    aggregated_notes = "\n".join(collected_notes) if collected_notes else None
     qc = build_quality_control(
         curation_values=curation_values,
         annotators=annotators,
-        notes=aggregated_notes,
     )
 
     return qc
