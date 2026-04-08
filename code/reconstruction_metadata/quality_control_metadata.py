@@ -83,7 +83,7 @@ def _load_downloaded_cell_ids(directory: str | Path) -> set[str]:
     return cell_ids
 
 
-def _pending_status(evaluator: str = "Automated Init") -> List[QCStatus]:
+def _pending_status(evaluator: str = "Automated Init") -> list[QCStatus]:
     """
     Create an initial pending status entry with a UTC timestamp.
 
