@@ -16,10 +16,10 @@ xlrd==2.0.2 \
 smartsheet-python-sdk==3.7.2 \
 boto3==1.40.49 \
 aind-data-schema==2.6.0 \
-matplotlib==3.10.7
+matplotlib==3.10.7 \
+cloud-volume==12.12.1
 
-# latest allensdk must be installed before nmcp-precomputed to avoid installation error with py3.12
 pip3 install -e "git+https://github.com/AllenInstitute/AllenSDK@1bdca3ad884c3a5edea8236161424650603e6f29#egg=allensdk"
-pip3 install -e "git+https://github.com/AllenNeuralDynamics/nmcp-precomputed@v3.0.3#egg=nmcp"
+pip3 install nmcp-precomputed==3.0.7
 
 echo "All done!"

@@ -2,10 +2,16 @@ import argparse
 import concurrent.futures as futures
 import logging
 import time
+from functools import partial
 from pathlib import Path
 from typing import Callable, Optional, Sequence
 
-from enums import ExportFormat, ReconstructionSpace
+from enums import (
+    ExportFormat,
+    ReconstructionSpace,
+    parse_export_format,
+    parse_reconstruction_space,
+)
 from nmcp_client import (
     QueryError,
     NmcpClientConfig,
@@ -16,14 +22,14 @@ from nmcp_client import (
 )
 
 
-DEFAULT_EXPORT_FORMAT = ExportFormat.JSON
+DEFAULT_EXPORT_FORMAT = ExportFormat.LEGACY_JSON
 
 
 def _select_download_fn(
     service: NmcpClient, export_format: ExportFormat
 ) -> Callable[..., object]:
-    if export_format is ExportFormat.JSON:
-        return service.download_json
+    if export_format in (ExportFormat.LEGACY_JSON, ExportFormat.PORTAL_JSON):
+        return partial(service.download_json, export_format=export_format)
     if export_format is ExportFormat.SWC:
         return service.download_swc
     raise ValueError(f"Unsupported export format: {export_format}")
@@ -106,32 +112,17 @@ def download_neurons(
 
 def _parse_export_format(value: str) -> ExportFormat:
     """
-    Argparse type that accepts either integer enum values (e.g. '0', '1')
-    or names (e.g. 'json', 'swc'), case-insensitive.
+    Argparse type that accepts integer enum values or stable CLI aliases.
     """
-    # Try int value
     try:
-        ivalue = int(value)
-        return ExportFormat(ivalue)
-    except (ValueError, KeyError):
-        pass
-
-    # Try name
-    try:
-        return ExportFormat[value.upper()]
-    except KeyError as exc:
-        # Helpful message
-        names = ", ".join(e.name.lower() for e in ExportFormat)
-        values = ", ".join(str(e.value) for e in ExportFormat)
-        raise argparse.ArgumentTypeError(
-            f"Invalid format '{value}'. Use one of names {{{names}}} "
-            f"or values {{{values}}}."
-        ) from exc
+        return parse_export_format(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(str(exc)) from exc
 
 
 def _parse_reconstruction_space(value: str) -> ReconstructionSpace:
     try:
-        return ReconstructionSpace.parse_name(value)
+        return parse_reconstruction_space(value)
     except ValueError as exc:
         raise argparse.ArgumentTypeError(str(exc)) from exc
 
@@ -150,8 +141,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "-f",
         "--format",
-        help="Export format (name or value, e.g. 'json', 'swc', or matching integer value).",
-        default=DEFAULT_EXPORT_FORMAT.name.lower(),
+        help=(
+            "Export format (alias or numeric value). "
+            "Supported aliases: json, legacy-json, portal-json, swc."
+        ),
+        default="json",
         type=_parse_export_format,
     )
     parser.add_argument(
@@ -159,7 +153,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--reconstruction-space",
         type=_parse_reconstruction_space,
         default=ReconstructionSpace.SPECIMEN,
-        help="Reconstruction space to download. Valid values: specimen, ccf.",
+        help="Reconstruction space to download. Supported aliases: specimen, atlas, ccf.",
     )
     parser.add_argument(
         "-o",
