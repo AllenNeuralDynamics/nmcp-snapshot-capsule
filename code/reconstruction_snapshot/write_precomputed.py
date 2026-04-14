@@ -126,7 +126,6 @@ def _scale_reconstruction_to_voxel_space(
 
     for node in nodes:
         if isinstance(node, dict):
-            print("scaling node")
             _scale_point_to_voxel_space(node, scale_um_xyz)
 
     return scaled
