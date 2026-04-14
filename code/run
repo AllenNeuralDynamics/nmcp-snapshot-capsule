@@ -22,14 +22,31 @@ fi
 SUBJECT_ID=$(echo "$RAW_DATA_ASSET" | grep -oP 'exaSPIM_\K[^_]+')
 echo "Parsed subject ID: ${SUBJECT_ID}"
 
+NMCP_BASE_URL="${NMCP_BASE_URL:-https://morphology.allenneuraldynamics.org}"
+echo "Using NMCP base URL: ${NMCP_BASE_URL}"
+
 BASE_DIR="/results"
 CCF_SPACE_DIR="$BASE_DIR/ccf_space_reconstructions"
 SPECIMEN_SPACE_DIR="$BASE_DIR/specimen_space_reconstructions"
+PORTAL_JSON_TMP_DIR=$(mktemp -d "${TMPDIR:-/tmp}/nmcp-portal-json.XXXXXX")
+CCF_PORTAL_JSON_DIR="$PORTAL_JSON_TMP_DIR/ccf_space_reconstructions/json"
+SPECIMEN_PORTAL_JSON_DIR="$PORTAL_JSON_TMP_DIR/specimen_space_reconstructions/json"
 
-mkdir -p "$CCF_SPACE_DIR" "$SPECIMEN_SPACE_DIR"
+cleanup() {
+  rm -rf "$PORTAL_JSON_TMP_DIR"
+}
+
+trap cleanup EXIT
+
+mkdir -p \
+  "$CCF_SPACE_DIR" \
+  "$SPECIMEN_SPACE_DIR" \
+  "$CCF_PORTAL_JSON_DIR" \
+  "$SPECIMEN_PORTAL_JSON_DIR"
 
 echo "Downloading CCF space JSONs for subject ${SUBJECT_ID}..."
 python reconstruction_snapshot/download_neurons.py \
+  --url "$NMCP_BASE_URL" \
   --format json \
   --output "$CCF_SPACE_DIR/json" \
   --subject "$SUBJECT_ID" \
@@ -38,6 +55,7 @@ python reconstruction_snapshot/download_neurons.py \
 
 echo "Downloading CCF space SWCs for subject ${SUBJECT_ID}..."
 python reconstruction_snapshot/download_neurons.py \
+  --url "$NMCP_BASE_URL" \
   --format swc \
   --output "$CCF_SPACE_DIR/swc" \
   --subject "$SUBJECT_ID" \
@@ -46,6 +64,7 @@ python reconstruction_snapshot/download_neurons.py \
 
 echo "Downloading specimen space JSONs for subject ${SUBJECT_ID}..."
 python reconstruction_snapshot/download_neurons.py \
+  --url "$NMCP_BASE_URL" \
   --format json \
   --output "$SPECIMEN_SPACE_DIR/json" \
   --subject "$SUBJECT_ID" \
@@ -54,20 +73,39 @@ python reconstruction_snapshot/download_neurons.py \
 
 echo "Downloading specimen space SWCs for subject ${SUBJECT_ID}..."
 python reconstruction_snapshot/download_neurons.py \
+  --url "$NMCP_BASE_URL" \
   --format swc \
   --output "$SPECIMEN_SPACE_DIR/swc" \
   --subject "$SUBJECT_ID" \
   --reconstruction-space specimen \
   --verbose
 
+echo "Downloading temporary CCF portal JSONs for precomputed generation..."
+python reconstruction_snapshot/download_neurons.py \
+  --url "$NMCP_BASE_URL" \
+  --format portal-json \
+  --output "$CCF_PORTAL_JSON_DIR" \
+  --subject "$SUBJECT_ID" \
+  --reconstruction-space ccf \
+  --verbose
+
+echo "Downloading temporary specimen portal JSONs for precomputed generation..."
+python reconstruction_snapshot/download_neurons.py \
+  --url "$NMCP_BASE_URL" \
+  --format portal-json \
+  --output "$SPECIMEN_PORTAL_JSON_DIR" \
+  --subject "$SUBJECT_ID" \
+  --reconstruction-space specimen \
+  --verbose
+
 echo "Generating precomputed file for CCF reconstructions..."
 python reconstruction_snapshot/write_precomputed.py \
-  --input-dir "$CCF_SPACE_DIR/json" \
+  --input-dir "$CCF_PORTAL_JSON_DIR" \
   --output "$CCF_SPACE_DIR/reconstructions.precomputed"
 
 echo "Generating precomputed file for specimen space reconstructions..."
 python reconstruction_snapshot/write_precomputed.py \
-  --input-dir "$SPECIMEN_SPACE_DIR/json" \
+  --input-dir "$SPECIMEN_PORTAL_JSON_DIR" \
   --output "$SPECIMEN_SPACE_DIR/reconstructions.precomputed" \
   --zarr-group "$FUSED_ZARR_PATH"
 

@@ -14,7 +14,8 @@ from zip_utils import ZipExtractor, ZipExtractError
 
 
 FORMAT_SUFFIXES: Dict[ExportFormat, str] = {
-    ExportFormat.JSON: ".json",
+    ExportFormat.LEGACY_JSON: ".json",
+    ExportFormat.PORTAL_JSON: ".json",
     ExportFormat.SWC: ".swc",
 }
 
@@ -171,6 +172,7 @@ class NmcpClient:
         self,
         neuron: NeuronData,
         *,
+        export_format: ExportFormat = ExportFormat.LEGACY_JSON,
         reconstruction_space: ReconstructionSpace,
         output_path: Optional[Path | str] = None,
         attempts: int = 1,
@@ -188,9 +190,14 @@ class NmcpClient:
         Returns:
             dict: Parsed JSON payload.
         """
+        if export_format not in (ExportFormat.LEGACY_JSON, ExportFormat.PORTAL_JSON):
+            raise ValueError(
+                f"Unsupported JSON export format: {export_format}"
+            )
+
         json_text = self._download_text_payload(
             neuron,
-            ExportFormat.JSON,
+            export_format,
             reconstruction_space,
             output_path,
             attempts,

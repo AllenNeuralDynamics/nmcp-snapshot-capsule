@@ -5,9 +5,10 @@ This capsule builds a reconstruction snapshot for one exaSPIM subject and publis
 It performs the following workflow:
 - Parses the subject ID from a raw data asset URI.
 - Downloads published neuron reconstructions from the NMCP service in both spaces:
-  - CCF space: JSON and SWC
-  - Specimen space: JSON and SWC
-- Generates Neuroglancer precomputed skeleton outputs from downloaded JSON reconstructions.
+  - CCF space: legacy JSON and SWC
+  - Specimen space: legacy JSON and SWC
+- Downloads temporary portal-format JSON reconstructions in both spaces for precomputed generation.
+- Generates Neuroglancer precomputed skeleton outputs from staged portal-format JSON reconstructions.
 - Generates reconstruction metadata JSON files.
 - Uploads everything under `/results` to an S3 destination generated from the raw asset name and a destination bucket.
 
@@ -25,6 +26,7 @@ Arguments:
 - `<s3-destination-bucket>`: Destination bucket for final results (for example, `aind-open-data` or `s3://aind-open-data`).
 - `<fused-zarr-path>`: OME-Zarr group path used to derive specimen-space precomputed resolution and volume size, and to populate `data_description.source_data` with the top-level fused asset URI. Supported layouts include `s3://bucket/<asset>/fused.zarr` and `s3://bucket/<asset>/fusion/fused.zarr`.
 - `<processing.json path>`: Path to the processing.json file within the final processed reconstruction asset in CodeOcean, mounted to the capsule.
+- `NMCP_BASE_URL` (optional environment variable): Base URL for the NMCP portal instance. Defaults to `https://morphology.allenneuraldynamics.org`.
 - The reconstruction spreadsheet is always downloaded from Smartsheet at runtime.
 
 Example:
@@ -62,6 +64,10 @@ Main outputs:
 - `/results/quality_control.json`
 - `/results/data_description.json`
 - `/results/processing.json`
+
+Notes:
+- The archived JSON outputs under `/results/.../json` remain legacy JSON exports.
+- Portal-format JSON is staged in a temporary directory only for precomputed generation and is deleted before the script exits.
 
 ## Prerequisites
 
